@@ -1,0 +1,81 @@
+these are the commands used to process the atpD reads. 
+These commands derive from the tutorial https://mothur.org/wiki/miseq_sop/ for mothur.
+
+Kozich JJ, Westcott SL, Baxter NT, Highlander SK, Schloss PD. (2013): Development of a dual-index sequencing strategy and curation pipeline for analyzing amplicon sequence data on the MiSeq Illumina sequencing platform. Applied and Environmental Microbiology. 79(17):5112-20.
+
+the reviewers of the paper asked for this, however if you want to repeat these commands for your work with your data:
+FOLLOW THE ORIGINAL TUTORIAL at https://mothur.org/wiki/miseq_sop/ , not this one!!
+
+ 
+the reads were located in the folder called input_reads
+the reads were in .fastq format, both R1 and R2 for each soil sample.
+
+the commands are listed below, all the comments start with #
+
+
+
+make.file(inputdir=input_reads., type=fastq, prefix=atpd)
+
+make.contigs(file=atpd.files, processors=8)
+
+summary.seqs(fasta=atpd.trim.contigs.fasta)
+
+
+#on meso those primers should amplify a region of 296 bp, primers excluded
+
+
+screen.seqs(fasta=atpd.trim.contigs.fasta, group=atpd.contigs.groups, maxambig=0, maxlength=300, minlength=294)
+
+
+unique.seqs(fasta=atpd.trim.contigs.good.fasta)
+
+count.seqs(name=atpd.trim.contigs.good.names, group=atpd.contigs.good.groups)
+
+summary.seqs(count=atpd.trim.contigs.good.count_table)
+
+#now you need to create your custom database for reference
+
+pcr.seqs(fasta=WAatpd_align.fasta, start=654, end=950, keepdots=F, processors=8)
+
+align.seqs(fasta=atpd.trim.contigs.good.unique.fasta, reference=WAatpd_align.pcr.fasta, flip=t)
+
+summary.seqs(fasta=atpd.trim.contigs.good.unique.align, count=atpd.trim.contigs.good.count_table)
+
+screen.seqs(fasta=atpd.trim.contigs.good.unique.align, count=atpd.trim.contigs.good.count_table, summary=atpd.trim.contigs.good.unique.summary, start=1, end=295, maxhomop=8, minlength=280, maxlength=295)
+
+filter.seqs(fasta=atpd.trim.contigs.good.unique.good.align, vertical=T, trump=.)   
+
+unique.seqs(fasta=atpd.trim.contigs.good.unique.good.filter.fasta, count=atpd.trim.contigs.good.good.count_table)
+
+pre.cluster(fasta=atpd.trim.contigs.good.unique.good.filter.unique.fasta, count=atpd.trim.contigs.good.unique.good.filter.count_table, diffs=3)
+
+#the guy who developped mothur (yes I have emailed him) said use diff 3 https://forum.mothur.org/t/pre-cluster-set-diff-for-95-nucleotide-identity/20789/2
+
+chimera.vsearch(fasta=atpd.trim.contigs.good.unique.good.filter.unique.precluster.fasta, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.count_table, dereplicate=t)
+
+remove.seqs(fasta=atpd.trim.contigs.good.unique.good.filter.unique.precluster.fasta, accnos=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.accnos)
+
+classify.seqs(fasta=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, reference=trainset_atpd2_NEW.fasta, taxonomy=trainset_atpd2_NEW.tax, cutoff=80,iters=1000, ksize=12)
+
+#now remove unknonw
+remove.lineage(fasta=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, taxonomy=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.trainset_atpd2_NEW.wang.taxonomy, taxon=unknown)
+
+#now we cluster into otus, cutoff 0.05 which corresponds to 95%
+
+dist.seqs(fasta=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta, cutoff=0.5)
+cluster(column=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.dist, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, cutoff=0.03-0.04-0.05)
+-0.06-0.07-0.08-0.09-0.1)
+
+#here you can also try using a different methods, for instance Nearest neighbor (nearest): Each of the sequences within an OTU are at most X% distant from the most similar sequence in the OTU.
+cluster(column=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.dist, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, method=nearest, cutoff=0.2)
+
+#Next we want to know how many sequences are in each OTU from each group 
+make.shared(list=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.list, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table)
+
+#now we can classify the OTUs
+classify.otu(list=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.list, count=atpd.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, taxonomy=atpd.trim.contigs.good.unique.good.filter.unique.precluster.pick.trainset_atpd2_NEW.wang.taxonomy, threshold=80, label=0.03-0.04-0.05)
+-0.06-0.07-0.08-0.09-0.1)
+
+
+
+
