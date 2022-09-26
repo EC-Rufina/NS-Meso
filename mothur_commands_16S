@@ -1,0 +1,118 @@
+These are the commands used to process the 16S reads. 
+These commands derive from the tutorial https://mothur.org/wiki/miseq_sop/ for mothur.
+
+Kozich JJ, Westcott SL, Baxter NT, Highlander SK, Schloss PD. (2013): Development of a dual-index sequencing strategy and curation pipeline for analyzing amplicon sequence data on the MiSeq Illumina sequencing platform. Applied and Environmental Microbiology. 79(17):5112-20.
+
+The reviewers of the paper asked for this, however if you want to repeat these commands for your work with your data:
+FOLLOW THE ORIGINAL TUTORIAL at https://mothur.org/wiki/miseq_sop/ , not this one!!
+
+ 
+the reads were located in the folder called input_reads
+the reads were in .fastq format, both R1 and R2 for each soil sample.
+
+the commands are listed below, all the comments start with #
+
+make.file(inputdir=input_reads, type=fastq, prefix=stability)
+
+#then I combined the reads
+make.contigs(file=stability.files, processors=8)
+
+summary.seqs(fasta=stability.trim.contigs.fasta)
+
+#we have 280,581 reads, the reads should be around 252 bp, we had reads 464 bp, we have sequences with ambiguous base calls
+#we filter the reads by runing:
+
+screen.seqs(fasta=stability.trim.contigs.fasta, group=stability.contigs.groups, maxambig=0, maxlength=275, maxhomop=8)
+
+#This command will remove any sequences with ambiguous bases, anything longer than 275 bp, and reads with more than 8 repeated nucleotides.
+
+#now we remove duplicates
+
+unique.seqs(fasta=stability.trim.contigs.good.fasta)
+
+#then we run 
+count.seqs(name=stability.trim.contigs.good.names, group=stability.contigs.good.groups)
+
+#to generate a table where the rows are the names of the unique sequences and the columns are the names of the groups. 
+
+#then we run this to have a summary
+summary.seqs(count=stability.trim.contigs.good.count_table)
+
+#we have now 116,884 unique sequences
+
+#now we start aligning but, I need first s 16S batabase, I am using the silva bacteria because it is the one they use in the tutorial 
+#the database needs to be placed in /input_reads or inthe mothur bin $PATH
+
+#now I need to locate in that silva.bacteria alignemnt where our primers bind, for 16S we used
+#GTGCCAGCMGCCGCGGTAA 	(GTGCCAGCNGCCGCGGTAA)
+#GGACTACHVGGGTWTCTAAT  (GGACTACNNGGGTNTCTAAT) 
+
+#they are these same as in the tutorial
+
+pcr.seqs(fasta=silva.bacteria.fasta, start=11894, end=25319, keepdots=F, processors=8)
+
+#now we remane the silva alinment
+
+rename.file(input=silva.bacteria.pcr.fasta, new=silva.v4.fasta)
+
+#We align our sequencing reads to the silva reference
+align.seqs(fasta=stability.trim.contigs.good.unique.fasta, reference=silva.v4.fasta, flip=t)
+
+
+#then we run this
+screen.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table, summary=stability.trim.contigs.good.unique.summary, start=1968, end=11550, maxhomop=8)
+#to make sure all seq are aligned correctly
+
+#Now we know our sequences overlap the same alignment coordinates, we want to make sure they only overlap that region. So we’ll filter the sequences to remove the overhangs at both ends.
+
+filter.seqs(fasta=stability.trim.contigs.good.unique.good.align, vertical=T, trump=.)
+
+#We merge duplicates
+unique.seqs(fasta=stability.trim.contigs.good.unique.good.filter.fasta, count=stability.trim.contigs.good.good.count_table)
+
+#The next thing we want to do to further de-noise our sequences is to pre-cluster the sequences
+pre.cluster(fasta=stability.trim.contigs.good.unique.good.filter.unique.fasta, count=stability.trim.contigs.good.unique.good.filter.count_table, diffs=2)
+
+#At this point we have removed as much sequencing error as we can and it is time to turn our attention to removing chimeras
+
+#you need first to install v search in your usr/bin
+#do it by typing in your terminal 
+#sudo apt-get update -y
+#sudo apt-get install -y vsearch
+
+chimera.vsearch(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.count_table, dereplicate=t)
+
+#Running chimera.vsearch with the count file will remove the chimeric sequences from the count file. But you still need to remove those sequences from the fasta file
+
+remove.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, accnos=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.accnos)
+
+#let's check what it is left
+
+summary.seqs(fasta=current, count=current)
+
+#for the following command you need to download mothur-formatted version of the RDP training set (v.9), do it and move the two files in you working directory or in the bin path
+#this command filters out the reads that do not belong to bacteria
+
+classify.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, reference=trainset9_032012.pds.fasta, taxonomy=trainset9_032012.pds.tax, cutoff=80)
+
+#Now that everything is classified we want to remove our undesirables (Chloroplast-Mitochondria-unknown-Archaea-Eukaryota
+remove.lineage(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, taxonomy=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pds.wang.taxonomy, taxon=Chloroplast-Mitochondria-unknown-Archaea-Eukaryota)
+
+
+#remove the negative control (M15) the negative control from our dataset for the analysis
+remove.groups(count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta, taxonomy=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pds.wang.pick.taxonomy, groups=M15)
+
+#Now we have a couple of options for clustering sequences into OTUs. 
+
+dist.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta, cutoff=0.03)
+cluster(column=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.dist, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.pick.count_table)
+
+#Next we want to know how many sequences are in each OTU from each group 
+make.shared(list=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.opti_mcc.list, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.pick.count_table, label=0.03)
+
+#this shows the taxonomy for each of our OTUs
+classify.otu(list=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.opti_mcc.list, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.pick.count_table, taxonomy=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pds.wang.pick.pick.taxonomy, label=0.03)
+
+
+#we renamed the files
+rename.file(taxonomy=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.opti_mcc.0.03.cons.taxonomy, shared=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.opti_mcc.shared)
