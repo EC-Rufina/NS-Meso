@@ -6,8 +6,8 @@ This repository provides the commands for the microbiome analysis and the script
 
 
 Microbiome analysis:
-  - Amplicon sequencing reads are deposited under the following project number PRJNA841043.
-  - If you want to carried out similar analysis for your data, you should refer to the orginal tutorial at https://mothur.org/wiki/miseq_sop/ and cite 
+  - If you want to carry out similar analysis for your data, you should refer to the orginal tutorial at https://mothur.org/wiki/miseq_sop/ and cite
+ 
   Kozich JJ, Westcott SL, Baxter NT, Highlander SK, Schloss PD. (2013): Development of a dual-index sequencing strategy and curation pipeline for analyzing amplicon sequence data on the MiSeq Illumina sequencing platform. Applied and Environmental Microbiology. 79(17):5112-20.
 
 genus_phylogeny.py is a python script for core-genome phylogeny, it is the same of the MesICE page, except PRANK was used for genes alignments (not MAFFT)
