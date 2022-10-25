@@ -61,7 +61,7 @@ align.seqs(fasta=stability.trim.contigs.good.unique.fasta, reference=silva.v4.fa
 
 #then we run this
 screen.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table, summary=stability.trim.contigs.good.unique.summary, start=1968, end=11550, maxhomop=8)
-#to make sure all seq are aligned correctly
+#to make sure all sequences are aligned correctly
 
 #Now we know our sequences overlap the same alignment coordinates, we want to make sure they only overlap that region. So we’ll filter the sequences to remove the overhangs at both ends.
 
